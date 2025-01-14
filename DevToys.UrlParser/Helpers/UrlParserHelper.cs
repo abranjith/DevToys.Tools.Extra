@@ -38,7 +38,7 @@ internal static class UrlParserHelper
         catch (Exception ex)
         {
             logger.LogError(ex, "Error parsing URL");
-            return new(new UrlParserResponse(url, ex.Message), false);
+            return new(new UrlParserResponse(url, ex.Message?? "Error parsing the address"), false);
         }
     }
 

@@ -1,4 +1,5 @@
 ﻿using DevToys.Api;
+using DevToys.UrlParser.Helpers;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.Composition;
 
@@ -108,6 +109,7 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                 MainGridRow.Url,
                 MainGridColumn.Content,
                 _urlInputTextArea
+                    .OnTextChanged(OnUrlChanged)
                     .CanCopyWhenEditable()
             ),
             GUI.Cell(
@@ -123,7 +125,9 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                             .ReadOnly()
                             .HideCommandBar(),
                         _queryStringDataGrid
-                            .Title("Query"),
+                            .Title("Query")
+                            .AllowSelectItem()
+                            .Hide(),
                         IPStack()
 
                     )
@@ -132,6 +136,68 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
     );
 
     #endregion
+
+    private void OnUrlChanged(string url)
+    {
+        StartSend(url);
+    }
+
+    private void StartSend(string url)
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+        _infoBar.Close();
+        _infoBar.Hide();
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        WorkTask = SendAsync(url, _cancellationTokenSource.Token);
+    }
+
+    private async Task SendAsync(string url, CancellationToken cancellationToken)
+    {
+        using (await _semaphore.WaitAsync(cancellationToken))
+        {
+            await TaskSchedulerAwaiter.SwitchOffMainThreadAsync(cancellationToken);
+
+            ResultInfo<UrlParserResponse> formatResult = await UrlParserHelper.ParseAsync(
+                url,
+                _settingsProvider.GetSetting(encodeUrl),
+                _logger,
+                cancellationToken);
+
+            if (formatResult.HasSucceeded)
+            {
+                _infoBar.Close();
+                _infoBar.Hide();
+                _schemaOutputArea.Text(formatResult.Data.Schema ?? string.Empty);
+                _portOutputArea.Text(formatResult.Data.Port?.ToString() ?? string.Empty);
+                _hostOutputArea.Text(formatResult.Data.HostName ?? string.Empty);
+                _queryPathOutputArea.Text(formatResult.Data.UrlPath ?? string.Empty);
+                SetDataGridData(formatResult.Data.QueryString);
+                _ipv4TextArea.Text(string.Join(Environment.NewLine, formatResult.Data.IPv4));
+                _ipv6TextArea.Text(string.Join(Environment.NewLine, formatResult.Data.IPv6));
+            }
+            else
+            {
+                _infoBar.Title(formatResult.Data.ErrorMessage ?? formatResult.ErrorMessage);
+                _infoBar.Open();
+                _infoBar.Show();
+            }
+        }
+    }
+
+    private void SetDataGridData(IList<KeyValuePair<string,string>> data)
+    {
+        if(!data.Any())
+        {
+            _queryStringDataGrid.Hide();
+            return;
+        }
+        IUIDataGridRow[] rows = data.Select(kv => GUI.Row(null, kv.Key, kv.Value)).ToArray();
+        _queryStringDataGrid.Show();
+        _queryStringDataGrid.WithColumns("Key", "Value");
+        _queryStringDataGrid.WithRows(rows);
+    }
 
 
     #region :: Schema / Port / Host Stack ::
@@ -210,7 +276,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                         _ipv4TextArea
                             .Title("IPv4")
                             .ReadOnly()
-                            .HideCommandBar()
                     ),
                     GUI.Cell(
                         OutputGridRow.Content,
@@ -218,7 +283,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                         _ipv6TextArea
                             .Title("IPv6")
                             .ReadOnly()
-                            .HideCommandBar()
                     )
                 )
             );
