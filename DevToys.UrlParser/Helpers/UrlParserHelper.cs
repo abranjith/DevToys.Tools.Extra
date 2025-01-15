@@ -10,9 +10,9 @@ internal static class UrlParserHelper
 {
     internal static async Task<ResultInfo<UrlParserResponse>> ParseAsync(
         string url,
-        bool encodeUrl,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         try
         {
@@ -23,16 +23,19 @@ internal static class UrlParserHelper
                 var hostName = uri.Host;
                 var urlPath = uri.AbsolutePath;
                 var queryString = GetQueryStringValue(url);
-                var (IPv4, IPv6) = GetIPsForHostOrAddress(hostName);
+                var ipinfo = await GetIPsForHostOrAddress(hostName, cancellationToken);
 
-                return new(new UrlParserResponse(url, schema, port, hostName, urlPath, queryString, IPv4, IPv6), true);
+                return new(new UrlParserResponse(url, schema, port, hostName, urlPath, queryString, 
+                    ipinfo.Where(r => r.IPv4 != null).Select(r => r.IPv4).ToList()!,
+                    ipinfo.Where(r => r.IPv6 != null).Select(r => r.IPv6).ToList()!), true);
             }
             else
             {
-                var (IPv4, IPv6) = GetIPsForHostOrAddress(url);
-                var port = GetPort(url);
-                var hostName = GetHostName(url);
-                return new(new UrlParserResponse(url, null, port, hostName, null, null, IPv4, IPv6), true);
+                var ipinfo = await GetIPsForHostOrAddress(url, cancellationToken);
+                var firstRecord = ipinfo.FirstOrDefault();
+                return new(new UrlParserResponse(url, null, firstRecord.Port, firstRecord.HostName, null, null, 
+                    ipinfo.Where(r => r.IPv4 != null).Select(r => r.IPv4).ToList()!,
+                    ipinfo.Where(r => r.IPv6 != null).Select(r => r.IPv6).ToList()!), true);
             }
         }
         catch (Exception ex)
@@ -57,45 +60,44 @@ internal static class UrlParserHelper
         return queryString;
     }
 
-    private static (IList<string> IPv4, IList<string> IPv6) GetIPsForHostOrAddress(string hostOrAddress)
+    private static async Task<IList<IpInfo>> GetIPsForHostOrAddress(string hostOrAddress, CancellationToken cancellationToken)
     {
-        IList<string> ipv4s = [];
-        IList<string> ipv6s = [];
+        IList<IpInfo> info = [];
 
         if (IPEndPoint.TryParse(hostOrAddress, out var ip))
         {
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
-                ipv4s.Add(ip.Address.ToString());
+                info.Add(new IpInfo(ip.Port, await GetHostName(ip.Address.ToString(), cancellationToken), ip.Address.ToString(), null));
             }
             else if (ip.AddressFamily == AddressFamily.InterNetworkV6 && !IPAddress.IsLoopback(ip.Address))
             {
-                ipv6s.Add(ip.Address.ToString());
+                info.Add(new IpInfo(ip.Port, await GetHostName(ip.Address.ToString(), cancellationToken), null, ip.Address.ToString()));
             }
         }
         else
         {
-            var hostEntry = Dns.GetHostEntry(hostOrAddress);
+            var hostEntry = await Dns.GetHostEntryAsync(hostOrAddress, cancellationToken);
             foreach (var address in hostEntry.AddressList)
             {
                 if (address.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    ipv4s.Add(address.ToString());
+                    info.Add(new IpInfo(null, hostEntry.HostName, address.ToString(), null));
                 }
                 else if (address.AddressFamily == AddressFamily.InterNetworkV6 && !IPAddress.IsLoopback(address))
                 {
-                    ipv6s.Add(address.ToString());
+                    info.Add(new IpInfo(null, hostEntry.HostName, null, address.ToString()));
                 }
             }
         }
-        return (ipv4s, ipv6s);
+        return info;
     }
 
-    private static string? GetHostName(string address)
+    private static async Task<string?> GetHostName(string address, CancellationToken cancellationToken)
     {
         try
         {
-            var host = Dns.GetHostEntry(address);
+            var host = await Dns.GetHostEntryAsync(address, cancellationToken);
             return host.HostName;
         }
         catch (Exception)
@@ -103,14 +105,21 @@ internal static class UrlParserHelper
             return null;
         }
     }
+}
 
-    private static int? GetPort(string address)
+internal readonly struct IpInfo
+{
+    public int? Port { get; }
+    public string? HostName { get; }
+    public string? IPv4 { get; }
+    public string? IPv6 { get; }
+
+    public IpInfo(int? port, string? hostName, string? ipv4, string? ipv6)
     {
-        if (IPEndPoint.TryParse(address, out var ip))
-        {
-            return ip.Port;
-        }
-        return null;
+        Port = port;
+        HostName = hostName;
+        IPv4 = ipv4;
+        IPv6 = ipv6;
     }
 }
 
@@ -124,7 +133,6 @@ internal readonly struct UrlParserResponse
     public IList<KeyValuePair<string, string>> QueryString { get; } = [];
     public IList<string> IPv4 { get; } = [];
     public IList<string> IPv6 { get; } = [];
-
     public string? ErrorMessage { get; init; }
 
     public UrlParserResponse(string urlString, string? schema, int? port,

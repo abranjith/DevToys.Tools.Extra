@@ -161,7 +161,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
 
             ResultInfo<UrlParserResponse> formatResult = await UrlParserHelper.ParseAsync(
                 url,
-                _settingsProvider.GetSetting(encodeUrl),
                 _logger,
                 cancellationToken);
 
