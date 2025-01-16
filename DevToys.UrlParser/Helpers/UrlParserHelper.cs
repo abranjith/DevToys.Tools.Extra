@@ -16,6 +16,7 @@ internal static class UrlParserHelper
     {
         try
         {
+            url = url.Trim();
             if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
             {
                 var schema = uri.Scheme;

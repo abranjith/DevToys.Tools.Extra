@@ -44,16 +44,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
     #endregion
 
 
-    #region :: Settings ::
-
-    private static readonly SettingDefinition<bool> encodeUrl
-        = new(
-            name: $"{nameof(UrlParserGuiTool)}.{nameof(encodeUrl)}",
-            defaultValue: true);
-
-    #endregion
-
-
     [ImportingConstructor]
     public UrlParserGuiTool(ISettingsProvider settingsProvider)
     {
@@ -77,7 +67,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
             .RowLargeSpacing()
             .Rows(
                 (MainGridRow.Banner, GUI.Auto),
-                (MainGridRow.Options, GUI.Auto),
                 (MainGridRow.Url, new UIGridLength(1, UIGridUnitType.Fraction)),
                 (MainGridRow.Output, new UIGridLength(8, UIGridUnitType.Fraction))
             )
@@ -92,18 +81,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                     .Error()
                     .Close()
                     .Hide()
-            ),
-            GUI.Cell(
-                MainGridRow.Options,
-                MainGridColumn.Content,
-                GUI.Setting("urlparser-encode-url")
-                        .Title("Conversion").Description("Select the conversion mode")
-                        .Handle(
-                            _settingsProvider,
-                            encodeUrl,
-                            stateDescriptionWhenOn: "Encode",
-                            stateDescriptionWhenOff: "Decode"
-                        )
             ),
             GUI.Cell(
                 MainGridRow.Url,
@@ -126,6 +103,7 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
                             .HideCommandBar(),
                         _queryStringDataGrid
                             .Title("Query")
+                            .Extendable()
                             .AllowSelectItem()
                             .Hide(),
                         IPStack()
@@ -193,9 +171,9 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
             return;
         }
         IUIDataGridRow[] rows = data.Select(kv => GUI.Row(null, kv.Key, kv.Value)).ToArray();
-        _queryStringDataGrid.Show();
         _queryStringDataGrid.WithColumns("Key", "Value");
         _queryStringDataGrid.WithRows(rows);
+        _queryStringDataGrid.Show();
     }
 
 
@@ -307,7 +285,6 @@ internal enum MainGridColumn
 internal enum MainGridRow
 {
     Banner,
-    Options,
     Url,
     Output
 }
