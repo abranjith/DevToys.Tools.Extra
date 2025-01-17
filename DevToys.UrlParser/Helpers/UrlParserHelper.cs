@@ -42,7 +42,7 @@ internal static class UrlParserHelper
         catch (Exception ex)
         {
             logger.LogError(ex, "Error parsing URL");
-            return new(new UrlParserResponse(url, ex.Message?? "Error parsing the address"), false);
+            return new(new UrlParserResponse(url), ex.Message ?? "Error parsing the address", false);
         }
     }
 
@@ -134,7 +134,6 @@ internal readonly struct UrlParserResponse
     public IList<KeyValuePair<string, string>> QueryString { get; } = [];
     public IList<string> IPv4 { get; } = [];
     public IList<string> IPv6 { get; } = [];
-    public string? ErrorMessage { get; init; }
 
     public UrlParserResponse(string urlString, string? schema, int? port,
     string? hostName, string? urlPath, IList<KeyValuePair<string, string>>? queryString,
@@ -150,9 +149,8 @@ internal readonly struct UrlParserResponse
         IPv6 = ipv6s ?? [];
     }
 
-    public UrlParserResponse(string urlString, string? errorMessage)
+    public UrlParserResponse(string urlString)
     {
         UrlString = urlString;
-        ErrorMessage = errorMessage;
     }
 }

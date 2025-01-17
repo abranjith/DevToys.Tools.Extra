@@ -156,7 +156,7 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
             }
             else
             {
-                _infoBar.Title(formatResult.Data.ErrorMessage ?? formatResult.ErrorMessage);
+                _infoBar.Title(formatResult.ErrorMessage);
                 _infoBar.Open();
                 _infoBar.Show();
             }
