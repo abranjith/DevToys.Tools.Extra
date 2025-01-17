@@ -67,8 +67,8 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
             .RowLargeSpacing()
             .Rows(
                 (MainGridRow.Banner, GUI.Auto),
-                (MainGridRow.Url, new UIGridLength(1, UIGridUnitType.Fraction)),
-                (MainGridRow.Output, new UIGridLength(8, UIGridUnitType.Fraction))
+                (MainGridRow.Url, new UIGridLength(2, UIGridUnitType.Fraction)),
+                (MainGridRow.Output, new UIGridLength(10, UIGridUnitType.Fraction))
             )
             .Columns(
                 (MainGridColumn.Content, GUI.Auto)
