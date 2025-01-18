@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DevToys.PKCE.Helpers;
+namespace DevToys.Pkce.Helpers;
 
 internal class PkceHelper
 {
@@ -13,14 +13,15 @@ internal class PkceHelper
     /// </summary>
     /// <param name="size"></param>
     /// <returns></returns>
-    public static ResultInfo<PkceResponse> Generate(int size, ILogger logger)
+    public static ResultInfo<PkceResponse> Generate(int size, string? verifier, ILogger logger)
     {
         try
         {
             if (size < 43 || size > 128)
                 size = 128;
 
-            var verifier = GetCodeVerifier(size);
+            if(string.IsNullOrWhiteSpace(verifier))
+                verifier = GetCodeVerifier(size);
             var challenge = GetCodeChallenge(verifier);
 
             return new (new PkceResponse(verifier, challenge), true);
@@ -48,7 +49,7 @@ internal class PkceHelper
         char[] bytes = new char[size];
         for (int i = 0; i < bytes.Length; i++)
         {
-            bytes[i] = bytes[Random.Shared.Next(validChars.Length)];
+            bytes[i] = validChars[Random.Shared.Next(validChars.Length)];
         }
 
         return new string(bytes);

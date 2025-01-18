@@ -1,7 +1,7 @@
 ﻿using DevToys.Api;
 using System.ComponentModel.Composition;
 
-namespace DevToys.PKCE;
+namespace DevToys.Pkce;
 
 [Export(typeof(IResourceAssemblyIdentifier))]
 [Name(nameof(DevToysToolsExtraPkceResourceManagerAssemblyIdentifier))]

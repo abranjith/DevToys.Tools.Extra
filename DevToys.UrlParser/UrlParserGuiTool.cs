@@ -24,6 +24,14 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
     private readonly ILogger _logger;
     private readonly ISettingsProvider _settingsProvider;
     private CancellationTokenSource? _cancellationTokenSource;
+    internal Task? WorkTask { get; private set; }
+
+    [ImportingConstructor]
+    public UrlParserGuiTool(ISettingsProvider settingsProvider)
+    {
+        _logger = this.Log();
+        _settingsProvider = settingsProvider;
+    }
 
     #region :: UI Components ::
 
@@ -42,21 +50,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
     private readonly IUIInfoBar _infoBar = GUI.InfoBar("urlparser-error-banner");
 
     #endregion
-
-
-    [ImportingConstructor]
-    public UrlParserGuiTool(ISettingsProvider settingsProvider)
-    {
-        _logger = this.Log();
-        _settingsProvider = settingsProvider;
-    }
-
-    internal Task? WorkTask { get; private set; }
-
-    public void OnDataReceived(string dataTypeName, object? parsedData)
-    {
-        throw new NotImplementedException();
-    }
 
     #region :: View ::
 
@@ -116,16 +109,13 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
     #endregion
 
     private void OnUrlChanged(string url)
-    {
-        StartSend(url);
-    }
+        =>  StartSend(url);
 
     private void StartSend(string url)
     {
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
-        _infoBar.Close();
-        _infoBar.Hide();
+        _infoBar.Close().Hide();
         _cancellationTokenSource = new CancellationTokenSource();
 
         WorkTask = SendAsync(url, _cancellationTokenSource.Token);
@@ -144,8 +134,7 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
 
             if (formatResult.HasSucceeded)
             {
-                _infoBar.Close();
-                _infoBar.Hide();
+                _infoBar.Close().Hide();
                 _schemaOutputArea.Text(formatResult.Data.Schema ?? string.Empty);
                 _portOutputArea.Text(formatResult.Data.Port?.ToString() ?? string.Empty);
                 _hostOutputArea.Text(formatResult.Data.HostName ?? string.Empty);
@@ -157,8 +146,7 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
             else
             {
                 _infoBar.Title(formatResult.ErrorMessage);
-                _infoBar.Open();
-                _infoBar.Show();
+                _infoBar.Open().Show();
             }
         }
     }
@@ -175,7 +163,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
         _queryStringDataGrid.WithRows(rows);
         _queryStringDataGrid.Show();
     }
-
 
     #region :: Schema / Port / Host Stack ::
 
@@ -227,7 +214,6 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
 
     #endregion
 
-
     #region :: IP Stack ::
 
     private IUIStack IPStack()
@@ -267,12 +253,17 @@ internal sealed partial class UrlParserGuiTool : IGuiTool, IDisposable
 
     #endregion
 
+    public void OnDataReceived(string dataTypeName, object? parsedData)
+    {
+    }
+
     public void Dispose()
     {
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
         _semaphore.Dispose();
     }
+
 }
 
 #region :: Grids ::

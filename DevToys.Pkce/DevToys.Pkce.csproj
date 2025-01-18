@@ -6,6 +6,18 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+	<!-- NuGet package -->
+	<IsPackable>true</IsPackable>
+	<Version>0.0.1</Version>
+	<Title>Proof Key for Code Exchange (PKCE)</Title>
+	<Description>PKCE (RFC 7636) is an extension to the Authorization Code flow to prevent CSRF and authorization code injection attacks. See https://oauth.net/2/pkce/.</Description>
+	<PackageProjectUrl>https://my-website.com</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/abranjith/DevToys.Tools.Extra</RepositoryUrl>
+	<Authors>Ranjith</Authors>
+	<PackageTags>devtoys-app</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="DevToys.Api" Version="2.0.8-preview" />
   </ItemGroup>
@@ -14,6 +26,16 @@
     <EmbeddedResource Update="Pkce.resx">
       <Generator></Generator>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+	<None Include="$(RepoRoot)LICENSE.md" Link="docs\LICENSE.md" Pack="true" PackagePath="\" />
+	<None Include="$(RepoRoot)README.md" Link="docs\README.md" Pack="true" PackagePath="\" />
+
+	<!-- This makes sure to include platform-specific binaries into the NuGet package, if any-->
+	<None Include="runtimes\**" Pack="true" PackagePath="\lib\net8.0\runtimes\">
+		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
   </ItemGroup>
 
 </Project>

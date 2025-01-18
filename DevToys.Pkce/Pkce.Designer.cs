@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace DevToys.PKCE {
+namespace DevToys.Pkce {
     using System;
     
     
