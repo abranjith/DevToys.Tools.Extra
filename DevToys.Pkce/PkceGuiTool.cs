@@ -113,7 +113,7 @@ internal sealed partial class PkceGuiTool : IGuiTool, IDisposable
                         .CommandBarExtraContent(
                             _generatePairButton
                                 .AccentAppearance()
-                                .Text("Generate New Pair")
+                                .Text("Generate New")
                                 .OnClick(OnGeneratePair)
                         )
                     )

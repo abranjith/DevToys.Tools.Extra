@@ -7,6 +7,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevToys.UrlParser", "DevToy
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevToys.Pkce", "DevToys.Pkce\DevToys.Pkce.csproj", "{F7E3FB5F-1F9D-4C98-9F2E-C59A0EB44247}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		.github\copilot-instructions.md = .github\copilot-instructions.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevToys.HmacSignature", "DevToys.HmacSignature\DevToys.HmacSignature.csproj", "{FB05A665-E4B9-47C7-8E9F-05579872D5CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,8 +28,15 @@ Global
 		{F7E3FB5F-1F9D-4C98-9F2E-C59A0EB44247}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F7E3FB5F-1F9D-4C98-9F2E-C59A0EB44247}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F7E3FB5F-1F9D-4C98-9F2E-C59A0EB44247}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB05A665-E4B9-47C7-8E9F-05579872D5CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB05A665-E4B9-47C7-8E9F-05579872D5CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB05A665-E4B9-47C7-8E9F-05579872D5CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB05A665-E4B9-47C7-8E9F-05579872D5CB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {49CE9B04-DE3A-4DC0-8BC8-C8657ECC198F}
 	EndGlobalSection
 EndGlobal

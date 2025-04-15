@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+	<!-- NuGet package -->
+	<IsPackable>true</IsPackable>
+	<Version>0.0.1</Version>
+	<Title>Hash-based message authentication code (HMAC) signature</Title>
+	<Description>Tool to help with creation of hash-based message authentication code (HMAC) signature</Description>
+	<PackageProjectUrl>https://my-website.com</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/abranjith/DevToys.Tools.Extra</RepositoryUrl>
+	<Authors>Ranjith</Authors>
+	<PackageTags>devtoys-app</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<PackageReference Include="DevToys.Api" Version="2.0.8-preview" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="HmacSignature.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>HmacSignature.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="HmacSignature.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>HmacSignature.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+ <ItemGroup>
+  	<None Include="$(RepoRoot)LICENSE.md" Link="docs\LICENSE.md" Pack="true" PackagePath="\" />
+	<None Include="$(RepoRoot)README.md" Link="docs\README.md" Pack="true" PackagePath="\" />
+
+	<!-- This makes sure to include platform-specific binaries into the NuGet package, if any-->
+	<None Include="runtimes\**" Pack="true" PackagePath="\lib\net8.0\runtimes\">
+	<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</None>
+ </ItemGroup>
+
+</Project>
