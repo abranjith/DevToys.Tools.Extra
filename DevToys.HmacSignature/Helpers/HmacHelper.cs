@@ -14,52 +14,95 @@ internal class HmacHelper
     /// </summary>
     /// <param name="httpMethod"></param>
     /// <param name="pathAndQuery"></param>
+    /// <param name="secretKey"></param>
     /// <param name="content"></param>
     /// <param name="host"></param>
     /// <param name="logger"></param>
     /// <returns></returns>
-    public static ResultInfo<HmacResponse> Generate(string httpMethod, string pathAndQuery, string? content, string? host, ILogger logger)
+    public static ResultInfo<HmacResponse> Generate(string httpMethod, string pathAndQuery, string secretKey, 
+        string? content, string? host, HashAlgorithmEnum contentHashAlgorithm, HashAlgorithmEnum hmacHashAlgorithm,  ILogger logger)
     {
         try
         {
             // Specify the 'x-ms-date' header as the current UTC timestamp according to the RFC1123 standard.
             var date = DateTimeOffset.UtcNow.ToString("r", CultureInfo.InvariantCulture);
-            // Compute a content hash for the 'x-ms-content-sha256' header.
-            var contentHash = ComputeContentHash(content);
+            // Compute a content hash for the 'x-ms-content-shaXXX' header.
+            var contentHash = ComputeContentHash(content, contentHashAlgorithm);
 
             // Prepare a string to sign.
             var stringToSign = $"{httpMethod.Trim().ToUpper()}\n{pathAndQuery}\n{date};{host};{contentHash}";
             // Compute the signature.
-            var signature = ComputeSignature(stringToSign);
+            var signature = ComputeSignature(stringToSign, hmacHashAlgorithm, secretKey);
             // Concatenate the string, which will be used in the authorization header.
-            var authorizationHeader = $"HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature={signature}";
+            var authorizationHeader = $"HMAC-{GetHMACHashAlgorithm(hmacHashAlgorithm)} SignedHeaders=x-ms-date;host;x-ms-content-{GetContentHashAlgorithm(hmacHashAlgorithm)}&Signature={signature}";
             return new(new HmacResponse(date, contentHash, authorizationHeader), true);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error generating PKCE");
+            logger.LogError(ex, "Error generating HMAC signed header");
             return new(default, ex.Message, false);
         }
     }
-
-    static string ComputeContentHash(string? content)
+    
+    static string ComputeContentHash(string? content, HashAlgorithmEnum hashAlgorithm)
     {
-        if(string.IsNullOrWhiteSpace(content))
+        if (string.IsNullOrWhiteSpace(content))
         {
             return string.Empty;
         }
-        byte[] hashedBytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+        using HashAlgorithm ha = GetHA(hashAlgorithm);
+        byte[] hashedBytes = ha.ComputeHash(Encoding.UTF8.GetBytes(content));
+        return Convert.ToBase64String(hashedBytes);
+    }
+    
+    static string ComputeSignature(string stringToSign, HashAlgorithmEnum hashAlgorithm, string? secretKey)
+    {
+        using HMAC hmac = GetHMAC(hashAlgorithm, secretKey);
+        var bytes = Encoding.UTF8.GetBytes(stringToSign);
+        var hashedBytes = hmac.ComputeHash(bytes);
         return Convert.ToBase64String(hashedBytes);
     }
 
-    static string ComputeSignature(string stringToSign)
+    private static HashAlgorithm GetHA(HashAlgorithmEnum hashAlgorithm)
     {
-        string secret = "resourceAccessKey";
-        using var hmacsha256 = new HMACSHA256(Convert.FromBase64String(secret));
-        var bytes = Encoding.UTF8.GetBytes(stringToSign);
-        var hashedBytes = hmacsha256.ComputeHash(bytes);
-        return Convert.ToBase64String(hashedBytes);
+        return hashAlgorithm switch
+        {
+            HashAlgorithmEnum.SHA1 => SHA1.Create(),
+            HashAlgorithmEnum.SHA256 => SHA256.Create(),
+            _ => throw new ArgumentOutOfRangeException(nameof(hashAlgorithm), hashAlgorithm, null)
+        };
     }
+
+    private static HMAC GetHMAC(HashAlgorithmEnum hashAlgorithm, string secretKey)
+    {
+        return hashAlgorithm switch
+        {
+            HashAlgorithmEnum.SHA1 => new HMACSHA1(Convert.FromBase64String(secretKey)),
+            HashAlgorithmEnum.SHA256 => new HMACSHA256(Convert.FromBase64String(secretKey)),
+            _ => throw new ArgumentOutOfRangeException(nameof(hashAlgorithm), hashAlgorithm, null)
+        };
+    }
+
+    static string GetHMACHashAlgorithm(HashAlgorithmEnum hmacHashAlgorithm)
+    {
+        return hmacHashAlgorithm switch
+        {
+            HashAlgorithmEnum.SHA1 => "SHA1",
+            HashAlgorithmEnum.SHA256 => "SHA256",
+            _ => throw new ArgumentOutOfRangeException(nameof(hmacHashAlgorithm), hmacHashAlgorithm, null)
+        };
+    }
+
+    public static string GetContentHashAlgorithm(HashAlgorithmEnum hmacHashAlgorithm)
+    {
+        return hmacHashAlgorithm switch
+        {
+            HashAlgorithmEnum.SHA1 => "sha1",
+            HashAlgorithmEnum.SHA256 => "sha256",
+            _ => throw new ArgumentOutOfRangeException(nameof(hmacHashAlgorithm), hmacHashAlgorithm, null)
+        };
+    }
+
 }
 
 internal readonly struct HmacResponse
@@ -69,8 +112,6 @@ internal readonly struct HmacResponse
     public string? ContentHash { get; }
 
     public string? AuthorizationHeader { get; }
-
-    public string Method { get; } = "S256";
 
     public HmacResponse(string date, string contenthash, string authorizationHeader)
     {
@@ -82,4 +123,10 @@ internal readonly struct HmacResponse
     public HmacResponse()
     {
     }
+}
+
+internal enum HashAlgorithmEnum
+{
+    SHA1,
+    SHA256,
 }
