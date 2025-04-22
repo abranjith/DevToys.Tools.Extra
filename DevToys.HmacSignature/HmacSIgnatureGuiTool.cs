@@ -32,6 +32,7 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
         _logger = this.Log();
         _settingsProvider = settingsProvider;
         _infoBar.Close().Hide();
+        InitializeHttpMethodsDropdown(_httpMethodsDropdown);
     }
 
     #region :: Settings ::
@@ -52,10 +53,10 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
     #region :: UI Components ::
 
     //input
+    private readonly IUISelectDropDownList _httpMethodsDropdown = GUI.SelectDropDownList("hmac-http-method-list");
     private readonly IUIPasswordInput _secret = GUI.PasswordInput("hmac-secret-input");
-    private readonly IUISingleLineTextInput _requestHost = GUI.SingleLineTextInput("hmac-request-host-input");
-    private readonly IUISingleLineTextInput _requestPathandquery = GUI.SingleLineTextInput("hmac-request-content-input");
-    private readonly IUISingleLineTextInput _requestContent = GUI.SingleLineTextInput("hmac-request-content-input");
+    private readonly IUISingleLineTextInput _requestUrl = GUI.SingleLineTextInput("hmac-request-url");
+    private readonly IUIMultiLineTextInput _requestContent = GUI.MultiLineTextInput("hmac-request-content-input");
     private readonly IUIButton _generateButton = GUI.Button("hmac-generate-btn");
 
     //output
@@ -76,8 +77,7 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
                 (MainGridRow.Banner, GUI.Auto),
                 (MainGridRow.Options, GUI.Auto),
                 (MainGridRow.Secret, new UIGridLength(1, UIGridUnitType.Fraction)),
-                (MainGridRow.Host, new UIGridLength(1, UIGridUnitType.Fraction)),
-                (MainGridRow.PathAndQuery, new UIGridLength(1, UIGridUnitType.Fraction)),
+                (MainGridRow.Url, new UIGridLength(1, UIGridUnitType.Fraction)),
                 (MainGridRow.Content, new UIGridLength(3, UIGridUnitType.Fraction)),
                 (MainGridRow.Output, new UIGridLength(5, UIGridUnitType.Fraction))
             )
@@ -135,16 +135,9 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
                     .CanCopyWhenEditable()
                 ),
             GUI.Cell(
-                MainGridRow.Host,
+                MainGridRow.Url,
                 MainGridColumn.Content,
-                _requestHost
-                    .Title("Host")
-                ),
-            GUI.Cell(
-                MainGridRow.PathAndQuery,
-                MainGridColumn.Content,
-                _requestPathandquery
-                    .Title("Path And Query")
+                UrlStack()
                 ),
             GUI.Cell(
                 MainGridRow.Content,
@@ -178,27 +171,38 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
 
     private void OnGenerateRequest()
     {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
         _infoBar.Close().Hide();
-        //TODO - POST hardcoded
-        //Also make UI display better
-        var hmacHashAlgorithm = _settingsProvider.GetSetting(hmacHashAlgorithmSetting);
-        var contentHashAlgorithm = _settingsProvider.GetSetting(contentHashAlgorithmSetting);
-        var result = HmacHelper.Generate("POST", _requestPathandquery.Text,_secret.Text,_requestContent.Text, 
-            _requestHost.Text,contentHashAlgorithm,hmacHashAlgorithm, _logger);
+        _cancellationTokenSource = new CancellationTokenSource();
 
-        if (result.HasSucceeded)
+        WorkTask = OnGenerateRequestAsync(_cancellationTokenSource.Token);
+    }
+
+    private async Task OnGenerateRequestAsync(CancellationToken cancellationToken)
+    {
+        using (await _semaphore.WaitAsync(cancellationToken))
         {
-            var gridRows = new List<IUIDataGridRow>
+            await TaskSchedulerAwaiter.SwitchOffMainThreadAsync(cancellationToken);
+            var hmacHashAlgorithm = _settingsProvider.GetSetting(hmacHashAlgorithmSetting);
+            var contentHashAlgorithm = _settingsProvider.GetSetting(contentHashAlgorithmSetting);
+            var result = HmacHelper.Generate(_httpMethodsDropdown.SelectedItem!.Text!, _requestUrl.Text, _secret.Text, _requestContent.Text,
+                contentHashAlgorithm, hmacHashAlgorithm, _logger);
+
+            if (result.HasSucceeded)
             {
-                GUI.Row(result.Data, GUI.Cell("x-ms-date"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.Date))),
-                GUI.Row(result.Data, GUI.Cell($"x-ms-content-{HmacHelper.GetContentHashAlgorithm(contentHashAlgorithm)}"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.ContentHash))),
-                GUI.Row(result.Data, GUI.Cell("Authorization"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.AuthorizationHeader)))
-            };
-            _outputGrid.WithRows([.. gridRows]);
-        }
-        else
-        {
-            _infoBar.Title(result.ErrorMessage).Open().Show();
+                var gridRows = new List<IUIDataGridRow>
+                {
+                    GUI.Row(result.Data, GUI.Cell("x-ms-date"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.Date))),
+                    GUI.Row(result.Data, GUI.Cell($"x-ms-content-{HmacHelper.GetContentHashAlgorithm(contentHashAlgorithm)}"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.ContentHash))),
+                    GUI.Row(result.Data, GUI.Cell("Authorization"), GUI.Cell(GUI.Label().WrapIfNeeded().Text(result.Data.AuthorizationHeader)))
+                };
+                _outputGrid.WithRows([.. gridRows]);
+            }
+            else
+            {
+                _infoBar.Title(result.ErrorMessage).Open().Show();
+            }
         }
     }
 
@@ -222,6 +226,58 @@ internal sealed partial class HmacSignatureGuiTool : IGuiTool, IDisposable
     {
         _settingsProvider.SetSetting(contentHashAlgorithmSetting, algorithm);
     }
+
+    private static void InitializeHttpMethodsDropdown(IUISelectDropDownList selectDropDownList)
+    {
+        selectDropDownList
+            .WithItems(
+                GUI.Item("GET", HttpMethodType.GET),
+                GUI.Item("POST", HttpMethodType.POST),
+                GUI.Item("PUT", HttpMethodType.PUT),
+                GUI.Item("PATCH", HttpMethodType.PATCH),
+                GUI.Item("DELETE", HttpMethodType.DELETE)
+            )
+            .Select(0);
+    }
+
+    #region :: URL Stack ::
+
+    private IUIStack UrlStack()
+    {
+        return
+            GUI.Stack()
+            .Vertical()
+            .WithChildren(
+                GUI.Grid("hmac-url-section")
+                .RowSmallSpacing()
+                .ColumnSmallSpacing()
+                .Rows(
+                    (UrlGridRow.Content, GUI.Auto)
+                )
+                .Columns(
+                    (UrlGridColumn.Method, new UIGridLength(1, UIGridUnitType.Fraction)),
+                    (UrlGridColumn.Url, new UIGridLength(6, UIGridUnitType.Fraction))
+                )
+                .Cells(
+                    GUI.Cell(
+                        UrlGridRow.Content,
+                        UrlGridColumn.Method,
+                        _httpMethodsDropdown
+                            .Title("Http Method")
+                    ),
+                    GUI.Cell(
+                        UrlGridRow.Content,
+                        UrlGridColumn.Url,
+                        _requestUrl
+                            .Title("URL")
+                            .HideCommandBar()
+                            .CanCopyWhenEditable()
+                    )
+                )
+            );
+    }
+
+    #endregion
 }
 
 internal enum MainGridColumn
@@ -234,8 +290,28 @@ internal enum MainGridRow
     Banner,
     Options,
     Secret,
-    Host,
-    PathAndQuery,
+    Url,
     Content,
     Output
+}
+
+internal enum UrlGridRow
+{
+    Content,
+}
+
+internal enum UrlGridColumn
+{
+    Method,
+    Url,
+}
+
+internal enum HttpMethodType
+{
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+    OPTIONS
 }

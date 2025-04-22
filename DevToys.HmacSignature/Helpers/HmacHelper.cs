@@ -13,23 +13,27 @@ internal class HmacHelper
     /// Reference: https://learn.microsoft.com/en-us/azure/communication-services/tutorials/hmac-header-tutorial?pivots=programming-language-csharp
     /// </summary>
     /// <param name="httpMethod"></param>
-    /// <param name="pathAndQuery"></param>
+    /// <param name="url"></param>
     /// <param name="secretKey"></param>
     /// <param name="content"></param>
-    /// <param name="host"></param>
     /// <param name="logger"></param>
     /// <returns></returns>
-    public static ResultInfo<HmacResponse> Generate(string httpMethod, string pathAndQuery, string secretKey, 
-        string? content, string? host, HashAlgorithmEnum contentHashAlgorithm, HashAlgorithmEnum hmacHashAlgorithm,  ILogger logger)
+    public static ResultInfo<HmacResponse> Generate(string httpMethod, string url, string secretKey, 
+        string? content, HashAlgorithmEnum contentHashAlgorithm, HashAlgorithmEnum hmacHashAlgorithm,  ILogger logger)
     {
         try
         {
+            if(!IsValidUrl(url))
+            {
+                return new(default, "Invalid URL", false);
+            }
             // Specify the 'x-ms-date' header as the current UTC timestamp according to the RFC1123 standard.
             var date = DateTimeOffset.UtcNow.ToString("r", CultureInfo.InvariantCulture);
             // Compute a content hash for the 'x-ms-content-shaXXX' header.
             var contentHash = ComputeContentHash(content, contentHashAlgorithm);
 
             // Prepare a string to sign.
+            var (host, pathAndQuery) = GetHostAndPathQuery(url);
             var stringToSign = $"{httpMethod.Trim().ToUpper()}\n{pathAndQuery}\n{date};{host};{contentHash}";
             // Compute the signature.
             var signature = ComputeSignature(stringToSign, hmacHashAlgorithm, secretKey);
@@ -81,6 +85,20 @@ internal class HmacHelper
             HashAlgorithmEnum.SHA256 => new HMACSHA256(Convert.FromBase64String(secretKey)),
             _ => throw new ArgumentOutOfRangeException(nameof(hashAlgorithm), hashAlgorithm, null)
         };
+    }
+
+    private static bool IsValidUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out Uri? _);
+
+    private static (string, string) GetHostAndPathQuery(string? url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uriResult))
+        {
+            var host = uriResult?.Authority;
+            var pathAndQuery = uriResult?.PathAndQuery;
+            return (host ?? string.Empty, pathAndQuery ?? string.Empty);
+        }
+        return (string.Empty, string.Empty);
     }
 
     static string GetHMACHashAlgorithm(HashAlgorithmEnum hmacHashAlgorithm)
