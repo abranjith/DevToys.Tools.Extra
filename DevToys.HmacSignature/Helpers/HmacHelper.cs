@@ -27,6 +27,10 @@ internal class HmacHelper
             {
                 return new(default, "Invalid URL", false);
             }
+            if (string.IsNullOrEmpty(secretKey))
+            {
+                return new(default, "Secret Key is required", false);
+            }
             // Specify the 'x-ms-date' header as the current UTC timestamp according to the RFC1123 standard.
             var date = DateTimeOffset.UtcNow.ToString("r", CultureInfo.InvariantCulture);
             // Compute a content hash for the 'x-ms-content-shaXXX' header.
@@ -81,8 +85,8 @@ internal class HmacHelper
     {
         return hashAlgorithm switch
         {
-            HashAlgorithmEnum.SHA1 => new HMACSHA1(Convert.FromBase64String(secretKey)),
-            HashAlgorithmEnum.SHA256 => new HMACSHA256(Convert.FromBase64String(secretKey)),
+            HashAlgorithmEnum.SHA1 => new HMACSHA1(Encoding.UTF8.GetBytes(secretKey)),
+            HashAlgorithmEnum.SHA256 => new HMACSHA256(Encoding.UTF8.GetBytes(secretKey)),
             _ => throw new ArgumentOutOfRangeException(nameof(hashAlgorithm), hashAlgorithm, null)
         };
     }
@@ -96,7 +100,7 @@ internal class HmacHelper
         {
             var host = uriResult?.Authority;
             var pathAndQuery = uriResult?.PathAndQuery;
-            return (host ?? string.Empty, pathAndQuery ?? string.Empty);
+            return (host?.Trim('/') ?? string.Empty, pathAndQuery?.Trim('/') ?? string.Empty);
         }
         return (string.Empty, string.Empty);
     }
